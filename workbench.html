@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>任务工作台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg1:#f7f9fd; --bg2:#eef2f9; --card:#fff; --line:#e8ecf3;
+    --ink:#1d2331; --sub:#7a8394; --brand:#4f6ef7; --brand-soft:#eef1ff;
+    --today:#0d9262; --yest:#8a93a4; --auto:#8b5cf6; --manual:#0d9262;
+    --shadow:0 1px 2px rgba(24,39,75,.04),0 6px 18px rgba(24,39,75,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;color:var(--ink);
+       font:14px/1.55 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+       background:linear-gradient(160deg,var(--bg1),var(--bg2)) fixed}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px 60px}
+
+  /* header */
+  header{margin:0 -22px 18px;padding:16px 22px 15px;
+    background:linear-gradient(120deg,#4f6ef7,#6d5cf6 55%,#8b5cf6);
+    color:#fff;box-shadow:0 6px 22px rgba(79,110,247,.22)}
+  .h-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+  .h-left{flex:1;min-width:210px}
+  h1{font-size:20px;margin:0 0 3px;letter-spacing:.5px}
+  .meta{font-size:11px;color:rgba(255,255,255,.82)}
+  .meta b{color:#fff}
+  .live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;
+    background:#7ef0b2;box-shadow:0 0 0 3px rgba(126,240,178,.28)}
+  .live-dot.off{background:#ffd08a;box-shadow:0 0 0 3px rgba(255,208,138,.28)}
+  .stats{display:flex;gap:7px;flex-wrap:nowrap}
+  .stat{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);
+    border-radius:9px;padding:5px 11px;font-size:11px;backdrop-filter:blur(4px);white-space:nowrap}
+  .stat b{font-size:14px;margin-right:4px;font-variant-numeric:tabular-nums}
+
+  /* toolbar */
+  .bar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+  input[type=text]{flex:1;min-width:220px;padding:10px 14px;border:1px solid var(--line);
+    border-radius:10px;background:var(--card);font-size:14px;outline:none;box-shadow:var(--shadow)}
+  input[type=text]:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  button{padding:9px 15px;border:1px solid var(--line);border-radius:9px;background:var(--card);
+    color:var(--ink);cursor:pointer;font-size:13px;box-shadow:var(--shadow);transition:.15s}
+  button:hover{border-color:var(--brand);color:var(--brand);transform:translateY(-1px)}
+  button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  button.ghost{border-style:dashed;color:var(--sub)}
+
+  /* group */
+  .grp{margin-bottom:26px}
+  .grp-h{display:flex;align-items:center;gap:9px;margin:0 0 12px;font-size:16px;font-weight:700}
+  .dot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 4px rgba(0,0,0,.04)}
+  .cnt{color:var(--sub);font-weight:500;font-size:12px;background:#fff;
+    padding:2px 9px;border-radius:20px;border:1px solid var(--line)}
+  .list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  @media(max-width:980px){.list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:660px){.list{grid-template-columns:1fr}}
+
+  /* card: two rows */
+  .row{position:relative;background:var(--card);border:1px solid var(--line);
+    border-radius:13px;padding:14px 42px 13px 16px;box-shadow:var(--shadow);
+    cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s}
+  .row:hover{transform:translateY(-2px);border-color:#cdd6ef;
+    box-shadow:0 3px 6px rgba(24,39,75,.06),0 12px 26px rgba(24,39,75,.1)}
+  .r1{display:flex;align-items:flex-start;gap:8px;min-height:22px}
+  .ttl{flex:1;min-width:0;font-size:14px;font-weight:650;line-height:1.4;
+    color:var(--ink);word-break:break-word}
+  .row:hover .ttl{color:var(--brand)}
+  .live{width:7px;height:7px;border-radius:50%;background:#ff9800;flex:none;margin-top:6px;
+    box-shadow:0 0 0 3px #fff3e0;animation:pulse 1.6s infinite}
+  @keyframes pulse{50%{opacity:.4}}
+  .r2{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;
+    font-size:11px;color:var(--sub)}
+  .time{font-variant-numeric:tabular-nums;background:#f2f5fa;padding:2px 8px;border-radius:6px;color:#5b6577}
+  .src{max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tag{padding:2px 8px;border-radius:6px;white-space:nowrap;font-weight:500}
+  .tag.auto{background:#f3edff;color:var(--auto)}
+  .tag.manual{background:#e8f7ef;color:var(--manual)}
+  .tag.run{background:#fff3e0;color:#c26a00}
+  .tag.pin{background:#fff4d6;color:#a86b00;border:1px solid #ffdf94}
+  .row.pinned{background:linear-gradient(135deg,#fffdf6,#fff);border-color:#f0d79b}
+  .row.pinned:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#f5b400}
+  .hide{position:absolute;top:10px;right:10px;border:none;background:none;
+    color:#c2c9d6;font-size:19px;line-height:1;padding:3px 7px;box-shadow:none}
+  .hide:hover{color:#e5484d;background:none;transform:none}
+  .fav-star{position:absolute;top:9px;right:37px;border:none;background:none;
+    color:#d8b765;font-size:19px;line-height:1;padding:3px 5px;box-shadow:none}
+  .fav-star:hover{color:#e5a000;background:none;transform:none}
+  /* 常用置顶：一行 4 个小图标 */
+  .fav-sec{margin:0 0 22px;padding:15px 17px;
+    background:linear-gradient(135deg,#fffdf5,#fffdfb);
+    border:1px solid #f0dfb6;border-radius:14px;box-shadow:var(--shadow)}
+  .fav-head{display:flex;align-items:center;gap:9px;margin-bottom:12px;font-size:14px;font-weight:700}
+  .fav-head .cnt{background:#fff8e6;color:#a86b00;border-color:#f0dfb6}
+  .fav-clear{margin-left:auto;font-size:11px;padding:5px 11px;color:#a86b00;
+    border-color:#e8d5a0;background:#fffbeb;box-shadow:none}
+  .fav-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  @media(max-width:760px){.fav-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .fav{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;
+    padding:13px 8px 11px;background:#fff;border:1px solid #f0e2c4;border-radius:12px;
+    cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s;text-align:center}
+  .fav:hover{transform:translateY(-3px);border-color:#e5a000;
+    box-shadow:0 8px 20px rgba(200,150,0,.16)}
+  .fav-ico{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;
+    justify-content:center;font-size:21px;background:linear-gradient(135deg,#fff4d6,#ffe6ab);
+    box-shadow:inset 0 0 0 1px #f4d68b}
+  .fav-name{width:100%;font-size:11px;color:#6b5a35;line-height:1.35;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+    overflow:hidden;word-break:break-all}
+  .fav-x{position:absolute;top:5px;right:6px;border:none;background:none;
+    color:#c9b98f;font-size:16px;line-height:1;padding:2px 5px;box-shadow:none}
+  .fav-x:hover{color:#e5484d;background:none;transform:none}
+  /* 加入今天 面板 */
+  .addpanel{margin-top:10px;padding:14px;background:rgba(255,255,255,.85);border:1px solid #ffd98a;
+    border-radius:12px;box-shadow:var(--shadow)}
+  .addpanel .arow{display:flex;gap:8px;align-items:center}
+  .addpanel input{flex:1;min-width:0;padding:9px 12px;border:1px solid var(--line);
+    border-radius:8px;outline:none;font-size:13px}
+  .addpanel input:focus{border-color:#e5a000;box-shadow:0 0 0 3px #fff4d6}
+  .addbtn{padding:9px 14px;border-radius:8px;border:1px solid #e5a000;background:#fff7e6;
+    color:#a86b00;cursor:pointer;font-size:13px;white-space:nowrap}
+  .addbtn:hover{background:#ffedc2}
+  .results{margin-top:10px;max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+  .res{display:flex;align-items:center;gap:10px;padding:8px 11px;background:#fff;
+    border:1px solid var(--line);border-radius:8px;font-size:12px}
+  .res .rt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+  .res .rm{color:var(--sub);font-size:11px;white-space:nowrap}
+  .res .pinbtn{padding:4px 11px;border-radius:6px;border:1px solid #e5a000;background:#fff7e6;
+    color:#a86b00;cursor:pointer;font-size:11px;white-space:nowrap}
+  .res .pinbtn:hover{background:#ffedc2}
+  .res .pinbtn.done{border-color:var(--line);background:#f5f6f8;color:#aab0bb;cursor:default}
+  .res .favbtn{padding:4px 11px;border-radius:6px;border:1px solid #e5a000;background:#fffbeb;
+    color:#a86b00;cursor:pointer;font-size:11px;white-space:nowrap}
+  .res .favbtn:hover{background:#ffedc2}
+  .res .favbtn.done{border-color:var(--line);background:#f5f6f8;color:#aab0bb;cursor:pointer}
+  .res-none{color:var(--sub);font-size:12px;padding:8px 2px}
+  .empty{color:var(--sub);text-align:center;padding:34px 0;grid-column:1/-1;
+    background:rgba(255,255,255,.5);border:1px dashed var(--line);border-radius:12px}
+
+  /* hidden */
+  .hidbox{margin-top:30px;background:rgba(255,255,255,.7);border:1px solid var(--line);
+    border-radius:13px;padding:15px 17px}
+  .hidbox h3{margin:0 0 11px;font-size:13px;color:var(--sub);font-weight:600}
+  .hidlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  @media(max-width:760px){.hidlist{grid-template-columns:1fr}}
+  .hidrow{display:flex;align-items:center;gap:10px;padding:8px 11px;background:#fff;
+    border:1px solid var(--line);border-radius:9px;font-size:12px}
+  .hidrow .ttl{flex:1;color:var(--sub);font-weight:400}
+  .hidrow .tm{color:#a8adb5;font-variant-numeric:tabular-nums;flex:none}
+  .restore{font-size:11px;padding:4px 10px}
+
+  /* tip */
+  .tip{font-size:12px;color:var(--sub);line-height:1.8;margin-top:20px;padding:14px 17px;
+    background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:12px}
+  .tip b{color:var(--ink)}
+  .tip code{background:#eef1f7;padding:1px 6px;border-radius:4px;color:#4b5568}
+</style>
+</head>
+<body>
+<header>
+  <div class="h-in">
+    <div class="h-left">
+      <h1>📋 任务工作台</h1>
+      <div class="meta" id="meta">加载中…</div>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="bar">
+    <input type="text" id="q" placeholder="搜索标题 / 工作区…">
+    <button id="fToday" class="on">全部</button>
+    <button id="fManual">只看手动</button>
+    <button id="fAuto">只看自动</button>
+    <button id="reload" class="ghost" title="立即从数据库重新读取任务">↻ 刷新数据</button>
+    <button id="autoBtn" class="on" title="每 30 秒自动刷新">自动刷新：开</button>
+    <button id="addBtn" class="ghost" title="搜索老任务，钉到今天显示">＋ 加入今天</button>
+  </div>
+
+  <section class="fav-sec" id="favSec" style="display:none">
+    <div class="fav-head">⭐ 常用置顶 <span class="cnt" id="favCnt">0 个</span>
+      <button class="fav-clear" id="favClear" title="取消所有置顶，任务本身不删除">清空置顶</button></div>
+    <div class="fav-grid" id="favGrid"></div>
+  </section>
+
+  <div class="addpanel" id="addpanel" style="display:none">
+    <div class="arow">
+      <input type="text" id="sq" placeholder="输入老任务标题关键词，如：公海日扫 / SCRM…">
+      <button class="addbtn" id="clearPins">清空已钉</button>
+      <button class="addbtn" id="closeAdd">收起</button>
+    </div>
+    <div class="results" id="results"><div class="res-none">输入关键词开始搜索历史任务…</div></div>
+  </div>
+
+  <div id="groups"></div>
+
+  <div class="hidbox">
+    <h3 id="hidhead">已隐藏（0）</h3>
+    <div class="hidlist" id="hidden"></div>
+  </div>
+
+  <div class="tip">
+    <b>打开</b>：点任务卡片即在 WorkBuddy 打开对应会话（首次浏览器问“允许打开 WorkBuddy？”，选允许即可）。<br>
+    <b>隐藏</b>：点右上 × 从本工作台隐藏，<b>不删除任务</b>；在上方“已隐藏”里可恢复。<br>
+    <b>老任务调到今天</b>：点 <b>＋ 加入今天</b> → 搜标题 → 钉入。钉入的排在今天最前，带 📌；点 📌 标签移出。<br>
+    <b>常用置顶</b>：点任务卡右上 <b>☆</b> → 永久固定在顶部图标区（一行 4 个），不管最近有没有用；点图标直接打开，点 <b>×</b> 或 <b>清空置顶</b> 取消。老任务可在 <b>＋ 加入今天</b> 的搜索结果里点 <b>☆常用</b> 置顶。<br>
+    <b>自动更新</b>：本页每 30 秒自动查一次数据库；也可点 <b>↻ 刷新数据</b> 立即更新。<br>
+    <b>启动</b>：双击 <code>启动工作台.bat</code>（本地服务 + 自动开浏览器）。关闭黑窗口即停止服务。隐藏清单存本机浏览器。
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+(function(){
+  var KEY = 'wb_workbench_hidden_v1';
+  var PKEY = 'wb_workbench_pinned_v1';
+  var hidden = {};
+  try { hidden = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch(e){ hidden = {}; }
+  if (Array.isArray(hidden)) { var o={}; hidden.forEach(function(i){o[i]=1}); hidden=o; }
+  var pinned = {};
+  try { pinned = JSON.parse(localStorage.getItem(PKEY) || '{}') || {}; } catch(e){ pinned = {}; }
+  if (Array.isArray(pinned)) { var p={}; pinned.forEach(function(i){p[i]=1}); pinned=p; }
+
+  // 常用置顶：永久图标区，独立于「加入今天」；自带任务元数据，老任务不在库查询结果里也能显示
+  var FKEY = 'wb_workbench_favorites_v1';
+  var favs = {};
+  try { favs = JSON.parse(localStorage.getItem(FKEY) || '{}') || {}; } catch(e){ favs = {}; }
+  function saveFavs(){ try{ localStorage.setItem(FKEY, JSON.stringify(favs)); }catch(e){} }
+  function iconFor(s){
+    s = String(s||'');
+    if(/日报|报告|报表|周报|月报|总结/.test(s)) return '📊';
+    if(/数据|库|scrm|镜像|sql|同步|ingest/i.test(s)) return '🗄️';
+    if(/投放|广告|fb|meta|素材|facebook|instagram/i.test(s)) return '📣';
+    if(/客户|跟进|线索|公海|crm/i.test(s)) return '👥';
+    if(/记忆|自动化|skill|工作台|memory/i.test(s)) return '🧠';
+    if(/视频|剪辑|封面|配音|短视频/.test(s)) return '🎬';
+    if(/网站|独立站|站点|cloudflare|wordpress/i.test(s)) return '🌐';
+    if(/报价|热弯|图纸|cad/i.test(s)) return '📐';
+    if(/英语|学习|训练/.test(s)) return '📚';
+    return '🚀';
+  }
+  function favTask(t){
+    if(!t || !t.id) return;
+    favs[t.id] = {id:t.id, title:t.title||'(无标题)', space:t.space||'',
+                  cwd:t.cwd||'', auto:!!t.auto, icon:iconFor(t.title)};
+    saveFavs(); render();
+    var sqEl=document.getElementById('sq');
+    if(sqEl && sqEl.value.trim() && typeof doSearch==='function') doSearch();
+  }
+  function unfavTask(id){
+    delete favs[id]; saveFavs(); render();
+    var sqEl=document.getElementById('sq');
+    if(sqEl && sqEl.value.trim() && typeof doSearch==='function') doSearch();
+  }
+  function clearFavs(){
+    if(!Object.keys(favs).length) return;
+    if(!confirm('取消所有常用置顶？任务本身不会删除。')) return;
+    favs={}; saveFavs(); render();
+  }
+  function renderFavs(){
+    var ids=Object.keys(favs);
+    var sec=document.getElementById('favSec');
+    if(!sec) return;
+    sec.style.display = ids.length ? 'block' : 'none';
+    document.getElementById('favCnt').textContent = ids.length+' 个';
+    document.getElementById('favGrid').innerHTML = ids.map(function(id){
+      var f=favs[id]||{};
+      return '<div class="fav" onclick="window._wbOpen(\''+id+'\')" title="'+esc(f.title)+'">'
+        + '<button class="fav-x" title="取消置顶" onclick="event.stopPropagation();window._wbUnfav(\''+id+'\')">×</button>'
+        + '<div class="fav-ico">'+(f.icon||'🚀')+'</div>'
+        + '<div class="fav-name">'+esc(f.title)+'</div></div>';
+    }).join('');
+  }
+  window._wbUnfav = unfavTask;
+
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(hidden)); }catch(e){} }
+  function savePins(){ try{ localStorage.setItem(PKEY, JSON.stringify(pinned)); }catch(e){} }
+  function pinIds(){ return Object.keys(pinned).filter(function(k){return pinned[k];}); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function hideId(id,e){ if(e) e.stopPropagation(); hidden[id]=1; save(); render(); }
+  function restoreId(id){ delete hidden[id]; save(); render(); }
+  function openId(id){ window.location.href = 'workbuddy://chat/' + encodeURIComponent(id); }
+
+  var D = window.WB_DATA || {tasks:[],generatedAt:'未知',today:'',yesterday:''};
+  var mode = 'all', q = '';
+  var T = D.tasks || [];
+
+  function paintStats(){
+    document.getElementById('meta').innerHTML =
+      '<span class="live-dot" id="ldot"></span>数据更新：<b id="upd">'+esc(D.generatedAt)+'</b>'
+      +' ｜ 今天 '+esc(D.today)+' ｜ 昨天 '+esc(D.yesterday);
+    var nToday=T.filter(function(t){return t.group==='today';}).length;
+    var nYest=T.length-nToday;
+    var nMan=T.filter(function(t){return !t.auto;}).length;
+    var nAuto=T.length-nMan;
+    document.getElementById('stats').innerHTML =
+        '<div class="stat"><b>'+nToday+'</b>今天</div>'
+      + '<div class="stat"><b>'+nYest+'</b>昨天</div>'
+      + '<div class="stat"><b>'+nMan+'</b>手动</div>'
+      + '<div class="stat"><b>'+nAuto+'</b>自动</div>';
+  }
+
+  // 实时取数：带上钉入的 id，服务端把老任务并入「今天」
+  function load(){
+    fetch('/api/tasks?t='+Date.now()+'&pin='+encodeURIComponent(pinIds().join(',')), {cache:'no-store'})
+      .then(function(r){ if(!r.ok) throw new Error('http '+r.status); return r.json(); })
+      .then(function(d){
+        if(!d || !d.tasks) throw new Error('bad data');
+        D=d; T=d.tasks; paintStats(); render();
+        var dot=document.getElementById('ldot');
+        var up=document.getElementById('upd');
+        var btn=document.getElementById('reload');
+        if(dot) dot.classList.remove('off');
+        if(up) up.textContent = d.generatedAt;
+        btn.textContent='↻ 刷新数据';
+      })
+      .catch(function(){
+        var dot=document.getElementById('ldot');
+        var btn=document.getElementById('reload');
+        if(dot) dot.classList.add('off');
+        btn.textContent='↻ 刷新失败（未启动服务？）';
+      });
+  }
+
+  function visible(t){
+    if (hidden[t.id]) return false;
+    if (mode==='manual' && t.auto) return false;
+    if (mode==='auto' && !t.auto) return false;
+    if (q){
+      var s = (t.title+' '+t.space+' '+t.cwd).toLowerCase();
+      if (s.indexOf(q)<0) return false;
+    }
+    return true;
+  }
+
+  function cardHtml(t){
+    var live = (t.status==='working'||t.status==='active')
+      ? '<span class="live" title="进行中"></span>' : '';
+    var kind = t.auto ? '<span class="tag auto">自动</span>'
+                      : '<span class="tag manual">手动</span>';
+    var run = (t.status==='working'||t.status==='active')
+      ? '<span class="tag run">进行中</span>' : '';
+    var pinTag = t.pinned
+      ? '<span class="tag pin" title="点击移出今天" style="cursor:pointer" onclick="event.stopPropagation();window._wbUnpin(\''+t.id+'\')">📌 今日调用 ×</span>'
+      : '';
+    var star = '<button class="fav-star" title="'+(favs[t.id]?'取消常用置顶':'⭐ 置顶为常用（永久显示在顶部）')
+      + '" onclick="event.stopPropagation();window._wbFavToggle(\''+t.id+'\')">'+(favs[t.id]?'★':'☆')+'</button>';
+    return '<div class="row'+(t.pinned?' pinned':'')+'" onclick="window._wbOpen(\''+t.id+'\')" title="点击打开任务">'
+      + star
+      + '<button class="hide" title="从工作台隐藏（不删除任务）" onclick="window._wbHide(\''+t.id+'\',event)">×</button>'
+      + '<div class="r1">'+live+'<span class="ttl">'+esc(t.title)+'</span></div>'
+      + '<div class="r2">'
+      +   '<span class="time">'+esc((t.time||'').slice(11))+'</span>'
+      +   '<span class="src" title="'+esc(t.cwd)+'">📁 '+esc(t.space)+'</span>'
+      +   kind + run + pinTag
+      + '</div></div>';
+  }
+
+  function render(){
+    var list = T.filter(visible);
+    var groups = [
+      {k:'today', name:'今天', date:D.today, color:'#0d9262'},
+      {k:'yesterday', name:'昨天', date:D.yesterday, color:'#a6adba'}
+    ];
+    var html = '';
+    groups.forEach(function(g){
+      var arr = list.filter(function(t){return t.group===g.k;});
+      html += '<div class="grp"><div class="grp-h"><span class="dot" style="background:'+g.color+'"></span>'
+           + g.name+' <span class="cnt">'+arr.length+' 条</span></div><div class="list">';
+      html += arr.length ? arr.map(cardHtml).join('') : '<div class="empty">无任务</div>';
+      html += '</div></div>';
+    });
+    document.getElementById('groups').innerHTML = html;
+    renderFavs();
+
+    var hs = T.filter(function(t){return hidden[t.id];});
+    document.getElementById('hidhead').textContent = '已隐藏（'+hs.length+'）';
+    document.getElementById('hidden').innerHTML = hs.length
+      ? hs.map(function(t){
+          return '<div class="hidrow"><span class="ttl">'+esc(t.title)+'</span>'
+            +'<span class="tm">'+esc((t.time||'').slice(5,16))+'</span>'
+            +'<button class="restore" onclick="window._wbRestore(\''+t.id+'\')">恢复</button></div>';
+        }).join('')
+      : '<div class="empty" style="padding:14px 0">（无）</div>';
+  }
+
+  function favToggle(id){
+    if(favs[id]){ unfavTask(id); return; }
+    for(var i=0;i<T.length;i++){ if(T[i].id===id){ favTask(T[i]); return; } }
+  }
+  window._wbHide = hideId;
+  window._wbRestore = restoreId;
+  window._wbOpen = openId;
+  window._wbFavToggle = favToggle;
+
+  // ===== 加入今天：搜索 + 钉入 =====
+  var addpanel=document.getElementById('addpanel');
+  var sq=document.getElementById('sq');
+  var results=document.getElementById('results');
+  var searchTimer=null;
+  var searchCache={};
+
+  function doSearch(){
+    var kw=sq.value.trim();
+    if(!kw){ results.innerHTML='<div class="res-none">输入关键词开始搜索历史任务…</div>'; return; }
+    results.innerHTML='<div class="res-none">搜索中…</div>';
+    fetch('/api/search?q='+encodeURIComponent(kw),{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var rs=d.results||[];
+        if(!rs.length){ results.innerHTML='<div class="res-none">无匹配任务</div>'; return; }
+        results.innerHTML=rs.map(function(t){
+          searchCache[t.id]=t;
+          var isPin=!!pinned[t.id];
+          var isFav=!!favs[t.id];
+          return '<div class="res"><span class="rt" title="'+esc(t.title)+'">'+esc(t.title)+'</span>'
+            + '<span class="rm">'+esc(t.date||t.time)+' · '+esc(t.space)+'</span>'
+            + '<button class="favbtn'+(isFav?' done':'')+'" '
+            + 'onclick="window._wbFavFromSearch(\''+t.id+'\')"'
+            + '>'+(isFav?'★已置顶':'☆常用')+'</button>'
+            + '<button class="pinbtn'+(isPin?' done':'')+'" '
+            + (isPin?'disabled':'onclick="window._wbPin(\''+t.id+'\')"')
+            + '>'+(isPin?'已钉':'钉入')+'</button></div>';
+        }).join('');
+      })
+      .catch(function(){ results.innerHTML='<div class="res-none">搜索失败（服务未启动？）</div>'; });
+  }
+  function pinTask(id){
+    pinned[id]=1; savePins();
+    if(sq.value.trim()) doSearch();
+    load();
+  }
+  function unpinTask(id){
+    delete pinned[id]; savePins();
+    if(sq.value.trim()) doSearch();
+    load();
+  }
+  function clearPins(){
+    if(!Object.keys(pinned).length) return;
+    if(!confirm('清空所有「今日调用」标记？任务本身不会删除。')) return;
+    pinned={}; savePins();
+    if(sq.value.trim()) doSearch();
+    load();
+  }
+  window._wbPin=pinTask;
+  window._wbUnpin=unpinTask;
+  function favFromSearch(id){
+    var t=searchCache[id];
+    if(!t) return;
+    if(favs[id]) unfavTask(id); else favTask(t);
+  }
+  window._wbFavFromSearch=favFromSearch;
+
+  document.getElementById('addBtn').addEventListener('click',function(){
+    addpanel.style.display = addpanel.style.display==='none' ? 'block':'none';
+    if(addpanel.style.display==='block'){ sq.focus(); if(sq.value.trim()) doSearch(); }
+  });
+  document.getElementById('closeAdd').addEventListener('click',function(){ addpanel.style.display='none'; });
+  document.getElementById('clearPins').addEventListener('click',clearPins);
+  document.getElementById('favClear').addEventListener('click',clearFavs);
+  sq.addEventListener('input',function(){ clearTimeout(searchTimer); searchTimer=setTimeout(doSearch,250); });
+  sq.addEventListener('keydown',function(e){ if(e.key==='Escape') addpanel.style.display='none'; });
+
+  document.getElementById('q').addEventListener('input',function(e){ q=e.target.value.trim().toLowerCase(); render(); });
+  var btns = {fToday:'all', fManual:'manual', fAuto:'auto'};
+  Object.keys(btns).forEach(function(id){
+    document.getElementById(id).addEventListener('click',function(){
+      mode=btns[id];
+      ['fToday','fManual','fAuto'].forEach(function(x){document.getElementById(x).classList.remove('on');});
+      document.getElementById(id).classList.add('on');
+      render();
+    });
+  });
+  document.getElementById('reload').addEventListener('click',function(){
+    this.textContent='↻ 刷新中…'; load();
+  });
+
+  var autoOn = true, timer = null;
+  function setAuto(on){
+    autoOn = on;
+    var b=document.getElementById('autoBtn');
+    if(on){ b.classList.add('on'); b.textContent='自动刷新：开';
+      if(!timer) timer=setInterval(load, 30000);
+    } else { b.classList.remove('on'); b.textContent='自动刷新：关';
+      if(timer){ clearInterval(timer); timer=null; }
+    }
+  }
+  document.getElementById('autoBtn').addEventListener('click',function(){ setAuto(!autoOn); });
+
+  paintStats();
+  render();
+  load();               // 页面打开即取一次实时数据
+  setAuto(true);        // 每 30 秒自动刷新
+})();
+</script>
+</body>
+</html>

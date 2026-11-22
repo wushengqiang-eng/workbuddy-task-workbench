@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>任务工作台 · NEXUS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#060a12; --panel:rgba(16,24,40,.72); --line:rgba(90,130,190,.22);
+    --ink:#e6f1ff; --sub:#7f93b0; --cyan:#22d3ee; --violet:#a855f7;
+    --pink:#f472b6; --green:#34d399; --amber:#fbbf24;
+    --glow-c:0 0 12px rgba(34,211,238,.55); --glow-v:0 0 12px rgba(168,85,247,.55);
+  }
+  *{box-sizing:border-box}
+  html,body{min-height:100%}
+  body{margin:0;color:var(--ink);
+    font:14px/1.55 "Segoe UI","Microsoft YaHei",-apple-system,sans-serif;
+    background:var(--bg);overflow-x:hidden}
+
+  /* 背景层：网格 + 光晕 + 扫描线 */
+  .bg{position:fixed;inset:0;z-index:-2;pointer-events:none;
+    background:
+      radial-gradient(ellipse 70% 55% at 12% -5%,rgba(34,211,238,.16),transparent 60%),
+      radial-gradient(ellipse 60% 50% at 95% 8%,rgba(168,85,247,.15),transparent 60%),
+      radial-gradient(ellipse 60% 45% at 50% 110%,rgba(244,114,182,.08),transparent 60%),
+      #060a12}
+  .grid{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.4;
+    background-image:
+      linear-gradient(rgba(80,130,190,.09) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(80,130,190,.09) 1px,transparent 1px);
+    background-size:42px 42px;
+    mask-image:linear-gradient(to bottom,#000 0%,#000 55%,transparent 100%)}
+  .scan{position:fixed;inset:0;z-index:50;pointer-events:none;opacity:.25;
+    background:repeating-linear-gradient(to bottom,transparent 0,transparent 3px,rgba(0,0,0,.35) 4px)}
+  .scan:after{content:"";position:absolute;left:0;right:0;height:120px;
+    background:linear-gradient(to bottom,transparent,rgba(34,211,238,.06),transparent);
+    animation:sweep 7s linear infinite}
+  @keyframes sweep{from{top:-140px}to{top:100%}}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px 64px}
+
+  /* HUD header */
+  header{position:relative;margin:0 -22px 24px;padding:24px 22px 20px;
+    border-bottom:1px solid rgba(34,211,238,.25);
+    background:linear-gradient(180deg,rgba(12,20,36,.9),rgba(6,10,18,.4))}
+  header:after{content:"";position:absolute;bottom:-1px;left:0;width:34%;height:1px;
+    background:linear-gradient(90deg,var(--cyan),transparent);box-shadow:var(--glow-c)}
+  .h-in{max-width:1180px;margin:0 auto;display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+  .brand{display:flex;align-items:center;gap:12px}
+  .glyph{width:34px;height:34px;border:1px solid var(--cyan);border-radius:8px;
+    display:grid;place-items:center;color:var(--cyan);font-size:18px;
+    box-shadow:var(--glow-c),inset 0 0 14px rgba(34,211,238,.15)}
+  h1{font-size:22px;margin:0;letter-spacing:2px;font-weight:700}
+  h1 span{color:var(--cyan);text-shadow:var(--glow-c)}
+  .sub{font:11px/1.4 "Consolas",monospace;color:var(--sub);letter-spacing:1.5px;margin-top:3px}
+  .sys{text-align:right;font:11px/1.7 "Consolas",monospace;color:var(--sub);white-space:nowrap}
+  .sys .clock{font-size:15px;color:var(--cyan);letter-spacing:1px;text-shadow:var(--glow-c)}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:20px;
+    border:1px solid rgba(52,211,153,.35);color:var(--green);font-size:10px;letter-spacing:1px}
+  .chip.off{border-color:rgba(251,191,36,.35);color:var(--amber)}
+  .dot{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;
+    animation:blink 1.8s infinite}
+  @keyframes blink{50%{opacity:.35}}
+  .meta{font:11px "Consolas",monospace;color:var(--sub);margin-top:12px;letter-spacing:.5px}
+  .meta b{color:var(--cyan);font-weight:500}
+
+  /* stats */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+  @media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{position:relative;overflow:hidden;padding:14px 16px;border-radius:10px;
+    background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(8px)}
+  .stat:before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--c);
+    box-shadow:0 0 12px var(--c)}
+  .stat .k{font:10px "Consolas",monospace;color:var(--sub);letter-spacing:1.5px;text-transform:uppercase}
+  .stat .v{font:700 27px/1.2 "Consolas",monospace;color:var(--c);text-shadow:0 0 16px var(--c);margin-top:4px}
+
+  /* toolbar */
+  .bar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:22px}
+  input[type=text]{flex:1;min-width:200px;padding:10px 14px;border-radius:8px;
+    background:rgba(10,16,28,.8);border:1px solid var(--line);color:var(--ink);
+    font:13px "Consolas",monospace;outline:none;transition:.15s}
+  input[type=text]::placeholder{color:#556680}
+  input[type=text]:focus{border-color:var(--cyan);box-shadow:var(--glow-c)}
+  button{padding:9px 15px;border-radius:7px;cursor:pointer;font:12px "Consolas",monospace;
+    letter-spacing:.5px;color:var(--sub);background:rgba(12,20,34,.8);
+    border:1px solid var(--line);transition:.15s}
+  button:hover{color:var(--cyan);border-color:var(--cyan);box-shadow:var(--glow-c);transform:translateY(-1px)}
+  button.on{color:var(--cyan);border-color:var(--cyan);background:rgba(34,211,238,.1);box-shadow:var(--glow-c)}
+  button.ghost{color:var(--sub)}
+
+  /* group */
+  .grp{margin-bottom:28px}
+  .grp-h{display:flex;align-items:center;gap:10px;margin:0 0 13px;
+    font:600 15px "Consolas",monospace;letter-spacing:2px}
+  .grp-h .bar-line{width:22px;height:2px;background:var(--c);box-shadow:0 0 10px var(--c)}
+  .grp-h .name{color:var(--c);text-shadow:0 0 10px var(--c)}
+  .cnt{color:var(--sub);font-size:11px;letter-spacing:0}
+  .list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  @media(max-width:760px){.list{grid-template-columns:1fr}}
+
+  /* card */
+  .row{position:relative;overflow:hidden;padding:14px 42px 13px 18px;border-radius:10px;
+    background:linear-gradient(135deg,rgba(18,28,46,.85),rgba(10,16,28,.8));
+    border:1px solid var(--line);cursor:pointer;transition:.18s;
+    animation:in .35s both}
+  @keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .row:before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--c);
+    box-shadow:0 0 10px var(--c)}
+  .row:after{content:"";position:absolute;top:0;right:0;width:16px;height:16px;
+    border-top:1px solid var(--c);border-right:1px solid var(--c);opacity:.4}
+  .row:hover{transform:translateY(-2px);border-color:var(--c);
+    box-shadow:0 0 0 1px var(--c),0 8px 24px rgba(0,0,0,.4),0 0 22px rgba(34,211,238,.12)}
+  .r1{display:flex;align-items:flex-start;gap:8px;min-height:22px}
+  .ttl{flex:1;min-width:0;font-size:13.5px;font-weight:600;line-height:1.4;word-break:break-word}
+  .row:hover .ttl{color:var(--cyan)}
+  .live{width:6px;height:6px;border-radius:50%;background:var(--amber);flex:none;margin-top:6px;
+    box-shadow:0 0 8px var(--amber);animation:blink 1.4s infinite}
+  .r2{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px;
+    font:10.5px "Consolas",monospace;color:var(--sub)}
+  .time{color:var(--cyan);letter-spacing:.5px}
+  .src{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tag{padding:2px 8px;border-radius:4px;letter-spacing:.5px;border:1px solid}
+  .tag.auto{color:var(--violet);border-color:rgba(168,85,247,.4);background:rgba(168,85,247,.08)}
+  .tag.manual{color:var(--green);border-color:rgba(52,211,153,.35);background:rgba(52,211,153,.07)}
+  .tag.run{color:var(--amber);border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.08)}
+  .hide{position:absolute;top:8px;right:9px;border:none;background:none;box-shadow:none;
+    color:#4a5b75;font-size:18px;line-height:1;padding:3px 7px}
+  .hide:hover{color:var(--pink);background:none;transform:none;box-shadow:none;
+    text-shadow:0 0 10px var(--pink)}
+  .empty{color:var(--sub);text-align:center;padding:32px 0;grid-column:1/-1;
+    border:1px dashed var(--line);border-radius:10px;font:12px "Consolas",monospace}
+
+  /* hidden */
+  .hidbox{margin-top:26px;padding:15px 17px;border:1px solid var(--line);border-radius:10px;
+    background:rgba(10,16,28,.6)}
+  .hidbox h3{margin:0 0 11px;font:600 12px "Consolas",monospace;color:var(--sub);letter-spacing:1.5px}
+  .hidlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  @media(max-width:760px){.hidlist{grid-template-columns:1fr}}
+  .hidrow{display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:7px;
+    background:rgba(18,28,46,.6);border:1px solid var(--line);font-size:12px}
+  .hidrow .ttl{flex:1;color:var(--sub);font-weight:400}
+  .hidrow .tm{color:#5b6b84;font:10.5px "Consolas",monospace}
+  .restore{font-size:11px;padding:3px 10px}
+
+  /* footer */
+  .tip{margin-top:22px;padding:13px 16px;border:1px solid var(--line);border-radius:9px;
+    background:rgba(10,16,28,.5);font:11px/1.9 "Consolas",monospace;color:var(--sub)}
+  .tip b{color:var(--cyan);font-weight:500}
+  .tip code{color:var(--violet)}
+</style>
+</head>
+<body>
+<div class="bg"></div><div class="grid"></div><div class="scan"></div>
+
+<header>
+  <div class="h-in">
+    <div>
+      <div class="brand">
+        <div class="glyph">◈</div>
+        <div>
+          <h1>任务<span>工作台</span> <span style="font-size:11px;letter-spacing:3px;color:var(--violet)">/ NEXUS</span></h1>
+          <div class="sub">WORKBENCH CONTROL SYSTEM · V2.0</div>
+        </div>
+      </div>
+      <div class="meta" id="meta">INITIALIZING…</div>
+    </div>
+    <div class="sys">
+      <div class="clock" id="clock">--:--:--</div>
+      <div id="status"><span class="chip"><span class="dot"></span>LIVE CONNECTED</span></div>
+      <div style="margin-top:6px">SYS / ONLINE</div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+
+  <div class="bar">
+    <input type="text" id="q" placeholder="> 搜索任务 / 工作区…">
+    <button id="fToday" class="on">ALL</button>
+    <button id="fManual">手动</button>
+    <button id="fAuto">自动</button>
+    <button id="reload" class="ghost" title="立即从数据库读取">↻ 刷新</button>
+    <button id="autoBtn" class="on" title="每 30 秒自动刷新">AUTO · ON</button>
+  </div>
+
+  <div id="groups"></div>
+
+  <div class="hidbox">
+    <h3 id="hidhead">// HIDDEN (0)</h3>
+    <div class="hidlist" id="hidden"></div>
+  </div>
+
+  <div class="tip">
+    <b>OPEN</b> 点击卡片 → 在 WorkBuddy 打开对应会话<br>
+    <b>HIDE</b> 点右上 × 仅从本看板隐藏，不删除任务；在 HIDDEN 区可恢复<br>
+    <b>LIVE</b> 每 30 秒自动查询数据库，无需 token；点 ↻ 立即刷新<br>
+    <b>RUN</b> <code>启动科技版.bat</code> · 端口 8766 · 可与普通版同时运行
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+(function(){
+  var KEY = 'wb_workbench_hidden_v1';
+  var hidden = {};
+  try { hidden = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch(e){ hidden = {}; }
+  if (Array.isArray(hidden)) { var o={}; hidden.forEach(function(i){o[i]=1}); hidden=o; }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(hidden)); }catch(e){} }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function hideId(id,e){ if(e) e.stopPropagation(); hidden[id]=1; save(); render(); }
+  function restoreId(id){ delete hidden[id]; save(); render(); }
+  function openId(id){ window.location.href = 'workbuddy://chat/' + encodeURIComponent(id); }
+
+  var D = window.WB_DATA || {tasks:[],generatedAt:'未知',today:'',yesterday:''};
+  var mode='all', q='', T=D.tasks||[];
+
+  setInterval(function(){
+    var d=new Date();
+    document.getElementById('clock').textContent =
+      [d.getHours(),d.getMinutes(),d.getSeconds()].map(function(n){return ('0'+n).slice(-2);}).join(':');
+  },1000);
+
+  function paintStats(){
+    document.getElementById('meta').innerHTML =
+      'LAST SYNC <b>'+esc(D.generatedAt)+'</b> · TODAY '+esc(D.today)+' · YESTERDAY '+esc(D.yesterday);
+    var nt=T.filter(function(t){return t.group==='today';}).length;
+    var nm=T.filter(function(t){return !t.auto;}).length;
+    var data=[
+      ['TODAY',nt,'var(--cyan)'],['YESTERDAY',T.length-nt,'var(--violet)'],
+      ['MANUAL',nm,'var(--green)'],['AUTOMATED',T.length-nm,'var(--pink)']
+    ];
+    document.getElementById('stats').innerHTML = data.map(function(x){
+      return '<div class="stat" style="--c:'+x[2]+'"><div class="k">'+x[0]+'</div><div class="v">'+x[1]+'</div></div>';
+    }).join('');
+  }
+
+  function load(){
+    fetch('/api/tasks?t='+Date.now(),{cache:'no-store'})
+      .then(function(r){ if(!r.ok) throw new Error('http '+r.status); return r.json(); })
+      .then(function(d){
+        if(!d||!d.tasks) throw new Error('bad data');
+        D=d; T=d.tasks; paintStats(); render();
+        document.getElementById('status').innerHTML='<span class="chip"><span class="dot"></span>LIVE CONNECTED</span>';
+        document.getElementById('meta').innerHTML =
+          'LAST SYNC <b>'+esc(d.generatedAt)+'</b> · TODAY '+esc(d.today)+' · YESTERDAY '+esc(d.yesterday);
+        document.getElementById('reload').textContent='↻ 刷新';
+      })
+      .catch(function(){
+        document.getElementById('status').innerHTML='<span class="chip off"><span class="dot"></span>OFFLINE / CACHED</span>';
+        document.getElementById('reload').textContent='↻ 刷新失败';
+      });
+  }
+
+  function visible(t){
+    if(hidden[t.id]) return false;
+    if(mode==='manual'&&t.auto) return false;
+    if(mode==='auto'&&!t.auto) return false;
+    if(q){ var s=(t.title+' '+t.space+' '+t.cwd).toLowerCase(); if(s.indexOf(q)<0) return false; }
+    return true;
+  }
+
+  function cardHtml(t,i){
+    var live=(t.status==='working'||t.status==='active')?'<span class="live"></span>':'';
+    var kind=t.auto?'<span class="tag auto">AUTO</span>':'<span class="tag manual">MANUAL</span>';
+    var run=(t.status==='working'||t.status==='active')?'<span class="tag run">RUNNING</span>':'';
+    return '<div class="row" style="--c:'+(t.auto?'var(--violet)':'var(--cyan)')+';animation-delay:'+Math.min(i*18,300)+'ms"'
+      + ' onclick="window._wbOpen(\''+t.id+'\')" title="点击打开任务">'
+      + '<button class="hide" title="隐藏（不删除任务）" onclick="window._wbHide(\''+t.id+'\',event)">×</button>'
+      + '<div class="r1">'+live+'<span class="ttl">'+esc(t.title)+'</span></div>'
+      + '<div class="r2"><span class="time">'+esc((t.time||'').slice(11))+'</span>'
+      + '<span class="src" title="'+esc(t.cwd)+'">'+esc(t.space)+'</span>'+kind+run+'</div></div>';
+  }
+
+  function render(){
+    var list=T.filter(visible);
+    var groups=[
+      {k:'today',name:'TODAY / 今天',date:D.today,c:'var(--cyan)'},
+      {k:'yesterday',name:'YESTERDAY / 昨天',date:D.yesterday,c:'var(--violet)'}
+    ];
+    var html='';
+    groups.forEach(function(g){
+      var arr=list.filter(function(t){return t.group===g.k;});
+      html+='<div class="grp"><div class="grp-h" style="--c:'+g.c+'"><span class="bar-line"></span>'
+          +'<span class="name">'+g.name+'</span><span class="cnt">['+arr.length+']</span></div><div class="list">';
+      html+=arr.length?arr.map(cardHtml).join(''):'<div class="empty">NO DATA</div>';
+      html+='</div></div>';
+    });
+    document.getElementById('groups').innerHTML=html;
+
+    var hs=T.filter(function(t){return hidden[t.id];});
+    document.getElementById('hidhead').textContent='// HIDDEN ('+hs.length+')';
+    document.getElementById('hidden').innerHTML=hs.length
+      ? hs.map(function(t){return '<div class="hidrow"><span class="ttl">'+esc(t.title)+'</span>'
+          +'<span class="tm">'+esc((t.time||'').slice(5,16))+'</span>'
+          +'<button class="restore" onclick="window._wbRestore(\''+t.id+'\')">恢复</button></div>';}).join('')
+      : '<div class="empty" style="padding:14px 0">// EMPTY</div>';
+  }
+
+  window._wbHide=hideId; window._wbRestore=restoreId; window._wbOpen=openId;
+
+  document.getElementById('q').addEventListener('input',function(e){q=e.target.value.trim().toLowerCase();render();});
+  var btns={fToday:'all',fManual:'manual',fAuto:'auto'};
+  Object.keys(btns).forEach(function(id){
+    document.getElementById(id).addEventListener('click',function(){
+      mode=btns[id];
+      ['fToday','fManual','fAuto'].forEach(function(x){document.getElementById(x).classList.remove('on');});
+      document.getElementById(id).classList.add('on'); render();
+    });
+  });
+  document.getElementById('reload').addEventListener('click',function(){this.textContent='↻ 载入中…';load();});
+
+  var autoOn=true,timer=null;
+  function setAuto(on){
+    autoOn=on; var b=document.getElementById('autoBtn');
+    if(on){b.classList.add('on');b.textContent='AUTO · ON';if(!timer)timer=setInterval(load,30000);}
+    else{b.classList.remove('on');b.textContent='AUTO · OFF';if(timer){clearInterval(timer);timer=null;}}
+  }
+  document.getElementById('autoBtn').addEventListener('click',function(){setAuto(!autoOn);});
+
+  paintStats(); render(); load(); setAuto(true);
+})();
+</script>
+</body>
+</html>
